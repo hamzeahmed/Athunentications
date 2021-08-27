@@ -1,10 +1,12 @@
 require('dotenv').config();
-
 const express = require('express');
 const _ = require('lodash');
-const encyrpt  = require("mongoose-encryption");
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
+const myPlaintextPassword = 's0/\/\P4$$w0rD';
+const someOtherPlaintextPassword = 'not_bacon';
+
 const app = express();
-const md5  = require("md5")
 app.set('view engine', 'ejs');
 app.use(express.static("public"))
 app.use(express.urlencoded({extended: true}));
@@ -35,29 +37,33 @@ app.get("/register",(req,res)=>{
 });
 
 app.post("/register", (req,res)=>{
-    const newUser = new User({
-       email: req.body.username,
-       password: md5 (req.body.password )
-    });
-    newUser.save((err)=>{
-        if(!err){
-            res.render("secrets");
-        }else{
-            console.log(err)
-        }
-        //password
+    bcrypt.hash(req.body.password, saltRounds, function(err, hash) {
+        const newUser = new User({
+            email: req.body.username,
+            password: hash
+         });
+         newUser.save((err)=>{
+             if(!err){
+                 res.render("secrets");
+             }else{
+                 console.log(err)
+             }
+             //password
+         });
     });
 });
 
 app.post("/login",(req,res)=>{
     const username = req.body.username;
-    const password = md5(req.body.password);
+    const password = req.body.password;
     User.findOne({email: username},(err,foundUser)=>{
         if(!err){
             if(foundUser){
-                if(foundUser.password === password){
-                    res.render("secrets");
-                }
+                bcrypt.compare(password, foundUser.password, function(err, result) {
+                    if( result){
+                        res.render("secrets");
+                    }
+                })
             }else{
                 console.log("Not Found")
             }
